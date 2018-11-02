@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:audioplayer/audioplayer.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +10,26 @@ import 'package:path_provider/path_provider.dart';
 typedef void OnError(Exception exception);
 
 enum PlayerState { stopped, playing, paused }
+
+AudioPlayer audioPlayer;
+Duration duration;
+Duration position;
+
+String localFilePath;
+
+PlayerState playerState = PlayerState.stopped;
+
+get isPlaying => playerState == PlayerState.playing;
+get isPaused => playerState == PlayerState.paused;
+
+get durationText =>
+    duration != null ? duration.toString().split('.').first : '';
+get positionText =>
+    position != null ? position.toString().split('.').first : '';
+
+StreamSubscription _audioPlayerStateSubscription;
+
+bool isMuted = false;
 
 
 void main() {
@@ -23,28 +43,6 @@ class AudioApp extends StatefulWidget {
 }
 
 class _AudioAppState extends State<AudioApp> {
-
-  AudioPlayer audioPlayer;
-  Duration duration;
-  Duration position;
-
-  String localFilePath;
-
-  PlayerState playerState = PlayerState.stopped;
-
-  get isPlaying => playerState == PlayerState.playing;
-  get isPaused => playerState == PlayerState.paused;
-
-  get durationText =>
-      duration != null ? duration.toString().split('.').first : '';
-  get positionText =>
-      position != null ? position.toString().split('.').first : '';
-
-  StreamSubscription _audioPlayerStateSubscription;
-
-  bool isMuted = false;
-
-
 
   @override
   void initState() {
@@ -81,28 +79,31 @@ class _AudioAppState extends State<AudioApp> {
       });
     });*/
 
-    audioPlayer.setDurationHandler((d) => setState(() {
-      duration = d;
-    }));
+    audioPlayer.durationHandler = (Duration d) {
+      print('Max duration: $d');
+      setState(() => duration = d);
+    };
 
-    audioPlayer.setPositionHandler((p) => setState(() {
-      position = p;
-    }));
+  /*  audioPlayer.positionHandler = (Duration p) => {
+    print('Current position: $p');
+    setState(() => duration = position);
+    }; */
 
-    audioPlayer.setCompletionHandler(() {
+    audioPlayer.completionHandler = () {
       onComplete();
       setState(() {
         position = duration;
       });
-    });
+    };
 
-    audioPlayer.setErrorHandler((msg) {
+    audioPlayer.errorHandler = (msg) {
+      print('audioPlayer error : $msg');
       setState(() {
         playerState = PlayerState.stopped;
         duration = new Duration(seconds: 0);
         position = new Duration(seconds: 0);
       });
-    }); 
+    };
   }
   Future<ByteData> loadAsset(String steps) async {
     var step = await rootBundle.load('assets/sounds/$steps.wav');
@@ -118,7 +119,6 @@ class _AudioAppState extends State<AudioApp> {
 
   Future playNext(String music) async{
     play(music);
-    onComplete();
   }
 
   Future play(String music) async {
@@ -130,7 +130,7 @@ class _AudioAppState extends State<AudioApp> {
     await file.writeAsBytes((await loadAsset(steps)).buffer.asUint8List());
     final result = await audioPlayer.play(file.path, isLocal: true);
 
-    if (result == true)
+      if (result == 1)
       setState(() {
         print('_AudioAppState.play... PlayerState.playing');
         playerState = PlayerState.playing;
@@ -156,7 +156,7 @@ class _AudioAppState extends State<AudioApp> {
   }
 
   Future mute(bool muted) async {
-    final result = await audioPlayer.mute(muted);
+    final result = await audioPlayer.setVolume(6.0);
     if (result == 1)
       setState(() {
         isMuted = muted;
@@ -190,7 +190,7 @@ class _AudioAppState extends State<AudioApp> {
                 children: <Widget>[
 
                   new IconButton(
-                      onPressed: isPlaying ? null : () => calling(''),
+                      onPressed: isPlaying ? null : () => calling('jathi 1'),
                       iconSize: 45.0,
                       icon: new Icon(Icons.play_arrow),
                       color: Colors.cyan),
@@ -248,7 +248,7 @@ final List<Entry> data = <Entry>[
       new Entry(
         new ListTile(title: const Text('Step 1'),
           onTap:(){
-          _AudioAppState().isPlaying ? null : _AudioAppState().calling('jathi 1');
+          isPlaying ? null : _AudioAppState().calling('jathi 1');
           },
           )),
       new Entry(
